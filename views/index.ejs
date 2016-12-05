@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>INFUSION MONITORING</title>
+		<link rel='stylesheet' href='/stylesheets/css_ns.css' />	
+		<script src="/javascripts/dygraph-combined.js"></script>
+		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+		<script src="/socket.io/socket.io.js"></script>
+		<script type="application/javascript">
+			var socket = io("http://localhost:3000");
+			/*
+			socket.on('inisialisasi', function(data){
+				var xy = "";
+				for (i=0;i<data.time_voltage.length;i++){
+					if (i == 0){
+						xy = xy +"["+typeof data.time_voltage[i] +","+typeof data.voltage[i]+"]";
+					}else{
+						xy = xy +",<br>["+new Date(data.time_voltage[i]) +","+typeof data.voltage[i]+"]";
+					}
+				};
+				document.getElementById("demo").innerHTML = xy;
+			});
+			*/
+			socket.on('mqtt', function(data){
+				var xy = "topic: "+ data.topic +", message: "+data.message;
+				document.getElementById('demo').innerHTML = xy;
+			});
+		</script>
+	</head>
+	<body>
+		<script>
+			socket.on('mqtt',function(data){
+				if(data.topic == 'volume'){
+					if(data.message < 50){
+						window.alert("Infus Habis");
+						document.getElementById("graphdiv_volume").innerHTML='<audio autoplay="autoplay"><source src="' + filename + '.mp3" type="audio/mpeg" /><source src="' + filename + '.ogg" type="audio/ogg" /><embed hidden="true" autostart="true" loop="false" src="' + filename +'.mp3" /></audio>';
+					}
+				}
+			});
+		</script>
+		
+		<div id="menu">
+		<!--sesuai jumlah esp-->
+			<ul><!-- dropdown list infus -->
+			<ul class="menu_esp">
+			  <li><a href="home.php?page=esp1" title="esp1" class="active">ESP1</a></li>
+			  <li><a href="home.php?page=esp2" title="esp2">ESP2</a></li>
+			  <li><a href="home.php?page=esp3" title="esp3">ESP3</a></li>
+			  <li><a href="home.php?page=esp4" title="esp4">ESP4</a></li>
+			  <li><a href="home.php?page=esp5" title="esp5">ESP5</a></li>
+			  <li><a href="home.php?page=esp6" title="esp6">ESP6</a></li>
+			  <li><a href="home.php?page=esp7" title="esp7">ESP7</a></li>
+			  <li><a href="home.php?page=esp8" title="esp8">ESP8</a></li>
+			  <li><a href="home.php?page=esp9" title="esp9">ESP9</a></li>
+			  <li><a href="home.php?page=esp10" title="esp10">ESP10</a></li>
+			  <li><a href="home.php?page=esp11" title="esp11">ESP11</a></li>
+			  <li><a href="home.php?page=esp12" title="esp12">ESP12</a></li>
+			  <li><a href="home.php?page=esp13" title="esp13">ESP13</a></li>
+			  <li><a href="home.php?page=esp14" title="esp14">ESP14</a></li>
+			  <li><a href="home.php?page=esp15" title="esp15">ESP15</a></li>
+			  <li><a href="home.php?page=esp16" title="esp16">ESP16</a></li>
+			</ul>
+		</div>
+	
+		<div id="main">	
+			<div class ="header">ESP1</div>
+			<hr>
+			<h2>COBA MONGO</h2>
+			<div>
+				<p id="demo"></p>
+			</div>
+			<h2>GRAFIK VOLTAGE SENSOR</h2>
+			<div id="graphdiv_voltage" class ="grafik">
+				<script>
+					$(document).ready(function () {
+						var datavoltage = [];						
+						socket.on('inisialisasi', function(data){
+							var j 	= 0;
+							var y 	= Number(data.voltage[j]);//initialing with first input
+							var t 	= new Date();
+							for (var i = data.voltage.length; i >= 0; i--) {
+								var x = new Date(t.getTime() - i * 3000); //set interval time taken for data, it's shows per second
+								var y 	= Number(data.voltage[j]);
+								datavoltage.push([x, y]);
+								j++;
+							}
+						});	
+						g_voltage = new Dygraph(document.getElementById("graphdiv_voltage"), datavoltage,
+							{	drawPoints: true,
+								showRoller: true,
+								valueRange: [0, 5.1],
+								labels: ['Waktu', 'Voltage']}
+						);
+						socket.on('mqtt',function(data){
+							if(data.topic == 'voltage'){
+								var x = new Date();  // current time
+								document.getElementById('demo').innerHTML = x;
+								var y = Number(data.message);//change voltage
+								datavoltage.push([x, y]);
+								g_voltage.updateOptions( { 'file': datavoltage } );
+							}
+						});
+					});
+				</script>
+			</div>
+			<hr>
+			<h2>GRAFIK VELOCITY SENSOR</h2>
+			<div id="graphdiv_velocity" class ="grafik">
+				<script>
+					$(document).ready(function () {
+						var datavelocity = [];
+						socket.on('inisialisasi',function(data){
+							var j 	= 0;
+							var y1 	= Number(data.velocity[j]);//initialing with first input
+							var y2 	= 21;
+							var t 	= new Date();
+								for (var i = data.velocity.length; i >= 0; i--) {
+									var x = new Date(t.getTime() - i * 60000); //set interval time taken for data, it's shows per second
+									var y1 = Number(data.velocity[j]);
+									datavelocity.push([x, y1, y2]);
+									j++;
+								}
+						});
+						g_velocity = new Dygraph(document.getElementById("graphdiv_velocity"), datavelocity,
+							{	drawPoints: true,
+								showRoller: true,
+								valueRange: [0, 45],
+								labels: ['Waktu', 'Velocity', 'Batas']}
+						);
+						socket.on('mqtt',function(data){
+							if(data.topic == 'velocity'){
+								var x = new Date();  // current time
+								var y1 = Number(data.message);//change voltage
+								var y2 	= 21;
+								datavelocity.push([x, y1, y2]);
+								g_velocity.updateOptions( { 'file': datavelocity } );
+							}
+						});
+					});
+				</script>
+			</div>
+			<hr>
+			<h2>GRAFIK VOLUME SENSOR</h2>
+			<div id="graphdiv_volume" class ="grafik">
+				<script>
+					$(document).ready(function () {
+						var datavolume = [];
+						socket.on('inisialisasi',function(data){
+							var j 	= 0;
+							var y1 	= Number(data.volume[j]);//initialing with first input
+							var y2 	= 50;
+							var t 	= new Date();
+								for (var i = data.volume.length; i >= 0; i--) {
+									var x = new Date(t.getTime() - i * 3000); //set interval time taken for data, it's shows per second
+									var y1 = Number(data.volume[j]);
+									datavolume.push([x, y1, y2]);
+									j++;
+								}
+						});
+						g_volume = new Dygraph(document.getElementById("graphdiv_volume"), datavolume,
+							{	drawPoints: true,
+								showRoller: true,
+								valueRange: [0, 500.1],
+								labels: ['Waktu', 'Volume', 'Batas']}
+						);
+						socket.on('mqtt',function(data){
+							if(data.topic == 'volume'){
+								var x = new Date();  // current time
+								var y1 = Number(data.message);//change voltage
+								var y2 	= 50;
+								datavolume.push([x, y1, y2]);
+								g_volume.updateOptions( { 'file': datavolume } );
+							}
+						});
+					});
+				</script>
+			</div>
+			<hr>
+			<div class="footer">
+				<p> Copyright 2016, by Naili Shofa </p>		
+			</div>
+		</div>
+		
+		<div id="home">
+			<div class="judul">
+				INFUSION MONITORING
+			</div>
+			<ul class="user_control">
+				<li><a href="#"><!-- onLoad="javascript: openPopup('tambah.php')"-->TAMBAH</a></li>
+				<li><a href="login.php">LOGOUT</a></li>
+			</ul>
+		</div>
+	</body>
+</html>
+html>

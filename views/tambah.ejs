@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<%= title %>
+	<link rel='stylesheet' href='/stylesheets/css_ns.css' />	
+
+</head>
+<body id="tambah">
+	<div id="login">
+		<form method="post" action="/tambahinfus" name="tambah">
+			<input type="hidden" name="action" value="tambah" />
+			<ul>
+				<li><input type = "text" placeholder = "noInfus" name = "noInfus" /></li>
+				<li><input type = "text" placeholder = "namaPasien" name = "namaPasien"/></li>
+				<li><input type = "text" placeholder = "namaPerawat" name = "namaPerawat" /></li>
+				<li><label>Jenis Infus </label><br>
+					<input type="radio" name="jenisInfus" value="RL" checked> Ringer Laktat<br/>
+					<input type="radio" name="jenisInfus" value="NACL"> NaCL</li><br><br>
+				<li><label>Volume (cc) </label>
+					<select name="volume">
+						<option value="1000">1000</option>
+						<option value="500">500</option>
+						<option value="250">250</option>
+					</select></li>
+				<li><label>Durasi (jam) </label>
+					<select name="durasi">
+						<option value="16">16</option>
+						<option value="8">8</option>
+						<option value="4">4</option>
+					</select></li>
+				<li><input type = "submit" value = " Tambah "/></li>
+			</ul>
+		</form>
+	</div>
+</body>
+</html>
