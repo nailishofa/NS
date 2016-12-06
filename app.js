@@ -20,8 +20,8 @@ var mongodbClient = mongodb.MongoClient,
 	collection;
 //MQTT
 var mqtt_port = 1883,
-	//mqtt_host = '10.20.32.139';
-	mqtt_host = 'test.mosquitto.org';
+	mqtt_host = 'localhost';
+	//mqtt_host = 'test.mosquitto.org';
 
 //Socket Connection
 var connections,
