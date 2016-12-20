@@ -16,76 +16,121 @@ var app 	= express(),
 
 //DB
 var mongodbClient = mongodb.MongoClient,  
-	mongodbURI	= 'mongodb://localhost:27017/TA_2',
+	mongodbURI	= 'mongodb://127.0.0.1:27017/TA_2',
 	collection;
 //MQTT
 var mqtt_port = 1883,
 	mqtt_host = 'localhost';
-	//mqtt_host = 'test.mosquitto.org';
+//	mqtt_host = 'test.mosquitto.org';
 
 //Socket Connection
 var connections,
-	io = io(server);
-	
+	io = io(server);	
+
 mongodbClient.connect(mongodbURI, function(err, db) {
-//Server io
-io.on('connection',function(socket){
-	connections = socket;
-		readSensor(db, function() { });
-});
-
-app.use(function(req, res, next){
-  res.io = io;
-  next();
-});
-
-var client = mqtt.connect({'host': mqtt_host, 'port': mqtt_port});
-client.on('connect', () => {
-	client.subscribe('#',{'qos':2});
-});
-
-//	createSensor(db, function() { });
+	if (err){
+		throw err;
+	}else{
+		console.log("connect MongoD success");
+	}
+	io.on('connection',function(socket){
+		connections = socket;
+		var idESP = "ESP1";
+		readAll(db, function() { });
+		readSensor(idESP, db, function() { });
+		connections.on('tambah',function(data){
+			var velocity = data.volume*20/data.durasi*60;
+			createSensor(data.idESP, data.jenisInfus, velocity, data.volume, db, function() { });
+		});
+	});
+	app.use(function(req, res, next){
+	  res.io = io;
+	  next();
+	});
+	
+	var client = mqtt.connect({'host': mqtt_host, 'port': mqtt_port});
+	client.on('connect', () => { client.subscribe('nailishofa/#',{'qos':2}); });
 	client.on('message', (topic, message) => {
 		var message	= message.toString('utf-8');
 		var value	= topic.split("/");
-		var idESP	= value[0];
-		var topic 	= value[1];
+		var idESP	= value[1];
+		var topic 	= value[2];
 		console.log('received message %s , %s', topic, message);
-		connections.emit('mqtt',{'topic':topic, 'message':Number(message)});
 		switch(topic){
-			case "voltage":
-				db.collection('TA').update(
-				{	topic: "ESP1" },
-				{ 	$push: {
-					"voltage":message,
-					"time_voltage":getDateTime(),
-				}}, function(err, result) {
-					assert.equal(err, null);
-				});
-			break;
-			case "velocity":
-				db.collection('TA').update(
-				{	topic: "ESP1" },
+			case "velocity": db.collection('TA').update(
+				{	topic: idESP },
 				{ 	$push: {
 					"velocity":message,
 					"time_velocity":getDateTime(),
 				}}, function(err, result) {
 					assert.equal(err, null);
 				});
+			connections.emit('velocity',{'idESP':idESP, 'message':Number(message)});
 			break;
-			case "volume":
-				db.collection('TA').update(
-				{	topic: "ESP1" },
-				{ 	$push: {
-					"volume":message,
-					"time_volume":getDateTime(),
-				}}, function(err, result) {
-					assert.equal(err, null);
+			case "volume": 
+				var cursor = db.collection('TA').find({'topic':idESP});
+				cursor.each(function(err, doc) {
+					if (doc != null) {
+						var volume			= doc.volume;
+						console.log(volume[volume.length-1]);
+						volume 				= volume[volume.length-1]-0.5;
+						connections.emit('volume',{'idESP':idESP, 'message':volume});
+						db.collection('TA').update(
+						{	topic: idESP },
+						{ 	$push: {
+							"volume":volume,
+							"time_volume":getDateTime(),
+							}}, function(err, result) {
+								assert.equal(err, null);
+						});
+					}
 				});
 			break;
 		}
 	});
 });
+
+var createSensor = function(idESP, jenisInfus, velocity, volume, db, callback) {
+   db.collection('TA').insert({
+	   "topic": idESP,
+	   "jenisInfus": jenisInfus,
+	   "velocity": [velocity],
+	   "time_velocity": [getDateTime()],
+	   "volume": [volume],
+	   "time_volume": [getDateTime()],
+	}, function(err, result) {
+		callback();
+	});
+	console.log("create");
+};
+var readSensor = function(idESP, db, callback) {
+	var cursor = db.collection('TA').find({'topic':idESP});
+	cursor.each(function(err, doc) {
+		if (doc != null) {
+			var velocity		= doc.velocity;
+			var time_velocity	= doc.time_velocity;
+			var volume			= doc.volume;
+			var time_volume		= doc.time_volume;
+			connections.emit('inisialisasi',{'velocity':velocity,'time_velocity':time_velocity,'volume':volume,'time_volume':time_volume});
+		} else {
+			callback();
+		}
+	});
+};
+var readAll = function(db, callback) {
+	var cursor = db.collection('TA').find();
+	var i = 0;
+	var idESP = [];
+	cursor.each(function(err,doc){
+		if (doc != null) {
+			idESP[i]	= doc.topic;
+			i++;
+			connections.emit('infus',{'idESP':idESP});
+		} else {
+			callback();
+		}
+	});
+};
 
 var getDateTime = function(){
 	var date= new Date(),
@@ -101,43 +146,6 @@ var getDateTime = function(){
 	month=(month < 10 ? "0" : "") + month;
 	day = (day < 10 ? "0" : "") + day;
 	return year + "/" + month + "/" + day + " " + hour + ":" + min + ":" + sec + ":";
-};
-
-var createSensor = function(db, callback) {
-   db.collection('TA').insert({
-	   _id: 05,
-	   "idPerawat": 00001,
-	   "idPasien": 00001,
-	   "topic": "ESP1",
-	   "voltage": [0],
-	   "time_voltage": [getDateTime()],
-	   "velocity": [0],
-	   "time_velocity": [getDateTime()],
-	   "volume": [0],
-	   "time_volume": [getDateTime()],
-	}, function(err, result) {
-		assert.equal(err, null);
-		callback();
-	});
-};
-var readSensor = function(db, callback) {
-var cursor = db.collection('TA').find({_id:5});
-	cursor.each(function(err, doc) {
-		assert.equal(err, null);
-		if (doc != null) {
-//			console.log(doc);
-			var voltage 		= doc.voltage;
-			var time_voltage	= doc.time_voltage;
-			var velocity		= doc.velocity;
-			var time_velocity	= doc.time_velocity;
-			var volume			= doc.volume;
-			var time_volume		= doc.time_volume;
-			console.log("io connected");
-			connections.emit('inisialisasi',{'voltage':voltage,'time_voltage':time_voltage,'velocity':velocity,'time_velocity':time_velocity,'volume':volume,'time_volume':time_volume});
-		} else {
-			callback();
-		}
-	});
 };
 
 // view engine setup
